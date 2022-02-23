@@ -23,13 +23,13 @@ interface IGaugeController {
     /// @notice Get gauge type for address
     /// @param _addr Gauge address
     /// @return Gauge type id
-    function gauge_types(address addr) external view returns (int128);
+    function gauge_types(address _addr) external view returns (int128);
 
     /// @notice Add gauge `addr` of type `gauge_type` with weight `weight`
     /// @param addr Gauge address
     /// @param gauge_type Gauge type
     /// @param weight Gauge weight
-    function add_gauge(address addre, int128 gauge_type, uint256 weight) external;
+    function add_gauge(address addr, int128 gauge_type, uint256 weight) external;
 
     /// @notice Checkpoint to fill data common for all gauges
     function checkpoint() external;
@@ -57,7 +57,7 @@ interface IGaugeController {
     /// @notice Add gauge type with name `_name` and weight `weight`
     /// @param _name Name of gauge type
     /// @param weight Weight of gauge type
-    function add_type(string _name, uint256 weight) external;
+    function add_type(string memory _name, uint256 weight) external;
 
     /// @notice Change gauge type `type_id` weight to `weight`
     /// @param type_id Gauge type id
@@ -68,11 +68,6 @@ interface IGaugeController {
     /// @param addr `GaugeController` contract address
     /// @param weight New Gauge weight
     function change_gauge_weight(address addr, uint256 weight) external;
-
-    /// @notice Allocate voting power for changing pool weights
-    /// @param _gauge_addr Gauge which `msg.sender` votes for
-    /// @param _user_weight Weight for a gauge in bps (units of 0.01%). Minimal is 0.01%. Ignored if 0
-    function vote_for_gauge_weights(address _gauge_addr, uint256 _user_weight) external;
 
     /// @notice Get current gauge weight
     /// @param addr Gauge address

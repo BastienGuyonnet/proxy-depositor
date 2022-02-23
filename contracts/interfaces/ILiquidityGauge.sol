@@ -11,6 +11,12 @@ interface ILiquidityGauge {
     /// @return bool success
     function user_checkpoint(address addr) external returns (bool);
 
+    /// @notice Deposit `_value` LP tokens
+    /// @dev Depositting also claims pending reward tokens
+    /// @param _value Number of tokens to deposit
+    /// @param _addr Address to deposit for
+    function deposit(uint256 _value, address _addr, bool _claim_rewards) external;
+
     /////////////// OTHER ///////////////
 
     /// @notice Get the number of decimals for this token
@@ -54,7 +60,7 @@ interface ILiquidityGauge {
     /// @param _addr Account to get reward amount for
     /// @param _token Token to get reward amount for
     /// @return uint256 Claimable reward token amount
-    function claimable_reward_write(address _addr, address token) external returns (uint256);
+    function claimable_reward_write(address _addr, address _token) external returns (uint256);
 
     /// @notice Set the default reward receiver for the caller.
     /// @dev When set to ZERO_ADDRESS, rewards are sent to the caller
@@ -72,12 +78,6 @@ interface ILiquidityGauge {
     /// @dev Only if either they had another voting event, or their voting escrow lock expired
     /// @param addr Address to kick
     function kick(address addr) external;
-
-    /// @notice Deposit `_value` LP tokens
-    /// @dev Depositting also claims pending reward tokens
-    /// @param _value Number of tokens to deposit
-    /// @param _addr Address to deposit for
-    function deposit(uint256 _value, address _addr, bool _claim_rewards) external;
 
     /// @notice Withdraw `_value` LP tokens
     /// @dev Withdrawing also claims pending reward tokens

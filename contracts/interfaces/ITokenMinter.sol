@@ -14,7 +14,7 @@ interface ITokenMinter {
 
     /// @notice Mint everything which belongs to `msg.sender` across multiple gauges
     /// @param gauge_addrs List of `LiquidityGauge` addresses
-    function mint_many(address[8] gauge_addrs) external;
+    function mint_many(address[8] memory gauge_addrs) external;
 
     /// @notice Mint tokens for `_for`
     /// @dev Only possible when `msg.sender` has been approved via `toggle_approve_mint`
@@ -24,5 +24,5 @@ interface ITokenMinter {
 
     /// @notice allow `minting_user` to mint for `msg.sender`
     /// @param minting_user Address to toggle permission for
-    function toggle_approve_mint(address minting_user)
+    function toggle_approve_mint(address minting_user) external;
 }
