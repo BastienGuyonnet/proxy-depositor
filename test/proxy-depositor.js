@@ -78,22 +78,44 @@ describe('Proxy-Depositor', () => {
         });
         self = await ethers.provider.getSigner(wantHolderAddress);
         selfAddress = await self.getAddress();
+        console.log("selfAddress: ", selfAddress);
+        console.log("owner: ", owner.address);
 
         // get artifacts
         ProxyDepositor = await ethers.getContractFactory("ProxyDepositor");
-        WantToken = await ethers.getContractFatctory("@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20");
+        WantToken = await ethers.getContractFactory("@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20");
         ProtocolToken = await ethers.getContractFactory("Hundred");
         ProxyToken = await ethers.getContractFactory("ProxyToken");
 
-        //deploy
+        // deploy
         proxyToken = await ProxyToken.deploy(protocolTokenAddress);
-        console.log("proxyToken address: ", proxyToken.address);
+        proxyDepositor = await ProxyDepositor.deploy(proxyToken.address, veProtocolTokenAddress, gaugeController, tokenMinter);
+        wantToken = await WantToken.attach(WantTokenAddress);
+        compoundWantToken = await WantToken.attach(CoumpoundWantTokenAddress);
+        gaugeWantToken = await WantToken.attach(GaugeWantTokenAddress);
+
+        // authorize the user as a strategy
+        await proxyDepositor.connect(owner).addStrategy(selfAddress, WantTokenAddress, GaugeWantTokenAddress);
+        await proxyDepositor.connect(owner).setTokenToPool(WantTokenAddress, CoumpoundWantTokenAddress);
+        await proxyDepositor.connect(owner).setTokenToGauge(WantTokenAddress, GaugeWantTokenAddress);
     });
 
     describe("ProxyToken and ProxyDepositor tests", () => {
-        it("should allow deposits of usdc", async () => {
+        it("should allow deposits and withdraws of usdc", async () => {
             const userBalance = await wantToken.balanceOf(selfAddress);
+            const depositAmount = userBalance.div(5);
+            console.log("depositAmount: ", depositAmount);
+            const initialProxyDepositorGBal = await gaugeWantToken.balanceOf(proxyDepositor.address);
+            console.log("initialProxyDepositorGBal: ", initialProxyDepositorGBal);
+            await wantToken.connect(self).transfer(proxyDepositor.address, depositAmount);
+            await proxyDepositor.connect(self).depositToStake(WantTokenAddress);
             
+            const finalProxyDepositorGBal = await gaugeWantToken.balanceOf(proxyDepositor.address);
+            console.log("finalProxyDepositorGBal: ", finalProxyDepositorGBal);
+
+            await proxyDepositor.connect(self).withdrawFromStake(WantTokenAddress, finalProxyDepositorGBal);
+            const afterUserBalance = await wantToken.balanceOf(selfAddress);
+            console.log(`userBalance: ${userBalance} and afterUserBalance: ${afterUserBalance}`);
         });
     });
 });

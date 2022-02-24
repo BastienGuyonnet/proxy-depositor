@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.11;
 
+import "hardhat/console.sol";
+
 import "./interfaces/IVoteEscrow.sol";
 import "./interfaces/IProxyToken.sol";
 import "./interfaces/ITokenMinter.sol";
@@ -10,6 +12,7 @@ import "./interfaces/CErc20I.sol";
 import "./interfaces/IComptroller.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract ProxyDepositor is AccessControlEnumerable {
     using SafeERC20 for IERC20;
@@ -32,9 +35,10 @@ contract ProxyDepositor is AccessControlEnumerable {
     string constant ACCESS_DENIED = "ACCESS DENIED";
     string constant WRONG_TOKEN = "WRONG TOKEN";
     string constant AMOUNT_EQUAL_ZERO = "AMOUNT = 0";
+    string constant REDEEM_ERROR = "REDEEM ERROR";
 
     /// @notice Helpful constants
-    uint256 MAX_LOCK_TIME = 4 * 365 * 24 * 3600; // 4 years
+    uint256 constant MAX_LOCK_TIME = 4 * 365 * 24 * 3600; // 4 years
 
     /// @notice Roles
     bytes32 public constant STRATEGY = keccak256("STRATEGY");
@@ -75,11 +79,13 @@ contract ProxyDepositor is AccessControlEnumerable {
         tokenMinter = _tokenMinter;
         protocolToken = IProxyToken(proxyToken).underlying();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(STRATEGIST, msg.sender);
+        console.log(msg.sender);
     }
 
     // strategy wants to deposit tokens in rewarding pools, boosted
     // assumes the tokens have been transferred to this contracts, otherwise fetch them
-    function depositToStake(address _token) public returns(bool){
+    function depositToStake(address _token) public {
         _onlyRegisteredStrategies();
 
         // Get pool and gauge for token
@@ -96,8 +102,6 @@ contract ProxyDepositor is AccessControlEnumerable {
         uint256 cTokenBalance = IERC20(pool).balanceOf(address(this));
         IERC20(pool).safeIncreaseAllowance(gauge, cTokenBalance);
         ILiquidityGauge(gauge).deposit(cTokenBalance, address(this), false);
-
-        return true;
     }
 
     // user wants to lock the tokens
@@ -127,6 +131,34 @@ contract ProxyDepositor is AccessControlEnumerable {
         IVoteEscrow(locker).increase_unlock_time(_unlockTime);
     }
 
+    //todo current amount passed is expressend in gaugeToken
+    //todo should I rework this so that a token amount is passed in 
+    function withdrawFromStake(address _token, uint256 amount) external {
+        _onlyRegisteredStrategies();
+
+        // Get pool and gauge for token
+        address pool = tokenToPool[_token];
+        address gauge = tokenToGauge[_token];
+        require(pool != address(0) && gauge != address(0), WRONG_TOKEN);
+
+        // use gToken to get cToken
+        uint256 amountToWithdraw = Math.min(ILiquidityGauge(gauge).balanceOf(address(this)),amount);
+        ILiquidityGauge(gauge).withdraw(amountToWithdraw, true);
+
+        // use cToken to get token
+        uint256 poolTokenAmountToWithdraw = IERC20(pool).balanceOf(address(this));
+        uint256 poolExchangeRate = CTokenI(pool).exchangeRateCurrent();
+        uint256 tokenAmountToWithdraw = poolExchangeRate * poolTokenAmountToWithdraw;
+        uint256 balanceOfUnderlying = CTokenI(pool).balanceOfUnderlying(address(this));
+        tokenAmountToWithdraw = Math.min(tokenAmountToWithdraw, balanceOfUnderlying);
+        require(CErc20I(pool).redeemUnderlying(tokenAmountToWithdraw) == 0, REDEEM_ERROR);
+
+        // send all token of the depositor to the strategy
+        uint256 tokenBal = IERC20(_token).balanceOf(address(this));
+        console.log("tokenBal :", tokenBal);
+        IERC20(_token).safeTransfer(msg.sender, tokenBal);
+    }
+
     // user wants to retrieve his tokens
     function withdrawFromLock() public {
         //todo implement this or remove if we consider locked token to be eternally locked
@@ -141,6 +173,7 @@ contract ProxyDepositor is AccessControlEnumerable {
         CTokenI[] memory tokens = new CTokenI[](1);
         tokens[0] = CErc20I(registeredStrategies[msg.sender].wantToken);
         ITokenMinter(tokenMinter).mint(registeredStrategies[msg.sender].gauge);
+
         // Split and send to strat and voters
     }
 
@@ -151,11 +184,11 @@ contract ProxyDepositor is AccessControlEnumerable {
     }
 
     function _onlyRegisteredStrategies() internal {
-        require(hasRole(STRATEGY, msg.sender), ACCESS_DENIED);
+        require(registeredStrategies[msg.sender].strategy == msg.sender, ACCESS_DENIED);
     }
 
     function addStrategy(address _strategy, address _wantToken, address _gauge) external onlyRole(DEFAULT_ADMIN_ROLE){
-        require(hasRole(STRATEGY, msg.sender), ACCESS_DENIED);
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), ACCESS_DENIED);
         strategyInfo memory strategy = strategyInfo(_strategy, _wantToken, _gauge);
         registeredStrategies[_strategy] = strategy;
     }

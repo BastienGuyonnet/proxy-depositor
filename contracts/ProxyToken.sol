@@ -6,12 +6,12 @@ import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 
-contract proxyToken is ERC20 {
+contract ProxyToken is ERC20 {
     using SafeERC20 for IERC20;
 
     address public operator; //Should be the proxy depositor, or a dedicated minter contract
 
-    address immutable underlying;
+    address public immutable underlying;
     constructor(ERC20 _token)
         ERC20(
             // Reaper Farm Proxy Hundred
