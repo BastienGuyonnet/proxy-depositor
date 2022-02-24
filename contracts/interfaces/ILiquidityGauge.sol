@@ -17,6 +17,13 @@ interface ILiquidityGauge {
     /// @param _addr Address to deposit for
     function deposit(uint256 _value, address _addr, bool _claim_rewards) external;
 
+    /// @notice Withdraw `_value` LP tokens
+    /// @dev Withdrawing also claims pending reward tokens
+    /// @param _value Number of tokens to withdraw
+    function withdraw(uint256 _value, bool _claim_rewards) external;
+
+    function balanceOf(address) external returns (uint256);
+
     /////////////// OTHER ///////////////
 
     /// @notice Get the number of decimals for this token
@@ -78,11 +85,6 @@ interface ILiquidityGauge {
     /// @dev Only if either they had another voting event, or their voting escrow lock expired
     /// @param addr Address to kick
     function kick(address addr) external;
-
-    /// @notice Withdraw `_value` LP tokens
-    /// @dev Withdrawing also claims pending reward tokens
-    /// @param _value Number of tokens to withdraw
-    function withdraw(uint256 _value, bool _claim_rewards) external;
 
     /// @notice Transfer token for a specified address
     /// @dev Transferring claims pending reward tokens for the sender and receiver
